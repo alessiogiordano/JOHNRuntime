@@ -12,7 +12,7 @@ let package = Package(
             name: "AUXLibrary",
             targets: ["AUXLibrary"]),
         .executable(
-            name: "University Cloud Suite",
+            name: "AUXServer",
             targets: ["AUXServer"]),
     ],
     dependencies: [
