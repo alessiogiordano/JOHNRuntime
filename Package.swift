@@ -25,12 +25,17 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "AUXLibrary",
-            dependencies: []),
+            dependencies: [],
+            plugins: ["TSCompiler"]),
         .executableTarget(
             name: "AUXServer",
             dependencies: ["AUXLibrary"]),
         .testTarget(
             name: "AUXTests",
             dependencies: ["AUXLibrary", "AUXServer"]),
+        .plugin(
+        	name: "TSCompiler",
+        	capability: .buildTool(),
+            dependencies: []),
     ]
 )
