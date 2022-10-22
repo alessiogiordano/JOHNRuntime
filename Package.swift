@@ -26,6 +26,13 @@ let package = Package(
         .target(
             name: "AUXLibrary",
             dependencies: [],
+            /*
+            swiftSettings: [
+                .unsafeFlags(["-Xfrontend", "-enable-experimental-string-processing"]),
+                .unsafeFlags(["-Xfrontend", "-enable-bare-slash-regex"]),
+                .unsafeFlags(["-Xfrontend", "-disable-availability-checking"])
+            ],
+            */
             plugins: ["TSCompiler"]),
         .executableTarget(
             name: "AUXServer",
