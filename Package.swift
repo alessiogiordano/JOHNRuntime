@@ -28,6 +28,7 @@ let package = Package(
         .target(
             name: "AUXLibrary",
             dependencies: [
+                "AUXClient",
                 // 💧 A server-side Swift web framework.
                 .product(name: "Vapor", package: "vapor")
             ],
@@ -42,7 +43,9 @@ let package = Package(
                 .unsafeFlags(["-Xfrontend", "-enable-bare-slash-regex"]),
                 .unsafeFlags(["-Xfrontend", "-disable-availability-checking"])
                  */
-            ],
+            ]),
+        .target(
+            name: "AUXClient",
             plugins: ["TSCompiler"]),
         .executableTarget(
             name: "AUXServer",
