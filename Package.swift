@@ -21,6 +21,9 @@ let package = Package(
         // .package(url: /* package url */, from: "1.0.0"),
         // 💧 A server-side Swift web framework.
         .package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.0.0"),
+        .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.0.0"),
+        .package(url: "https://github.com/swift-server/webauthn-swift.git", branch: "main"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -30,7 +33,10 @@ let package = Package(
             dependencies: [
                 "AUXClient",
                 // 💧 A server-side Swift web framework.
-                .product(name: "Vapor", package: "vapor")
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
+                .product(name: "WebAuthn", package: "webauthn-swift")
             ],
             swiftSettings: [
                 // Enable better optimizations when building in Release configuration. Despite the use of
