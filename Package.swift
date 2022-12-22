@@ -12,6 +12,9 @@ let package = Package(
         .library(
             name: "AUXLibrary",
             targets: ["AUXLibrary"]),
+        .library(
+            name: "JOHN",
+            targets: ["JOHN"]),
         .executable(
             name: "AUXServer",
             targets: ["AUXServer"]),
@@ -27,6 +30,7 @@ let package = Package(
         .package(url: "https://github.com/unrelentingtech/SwiftCBOR.git", from: "0.4.5"),
         .package(url: "https://github.com/apple/swift-crypto.git", from: "2.0.0"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+        .package(url: "https://github.com/swift-server/async-http-client.git", from: "1.9.0"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -35,6 +39,7 @@ let package = Package(
             name: "AUXLibrary",
             dependencies: [
                 "AUXClient",
+                "JOHN",
                 // 💧 A server-side Swift web framework.
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "Fluent", package: "fluent"),
@@ -59,9 +64,17 @@ let package = Package(
         .target(
             name: "AUXClient",
             plugins: ["TSCompiler"]),
+        .target(
+            name: "JOHN",
+            dependencies: [
+                .product(name: "AsyncHTTPClient", package: "async-http-client")
+            ]),
         .executableTarget(
             name: "AUXServer",
             dependencies: ["AUXLibrary"]),
+        .testTarget(
+            name: "JOHNTests",
+            dependencies: ["JOHN"]),
         .testTarget(
             name: "AUXTests",
             dependencies: ["AUXLibrary", "AUXServer",
