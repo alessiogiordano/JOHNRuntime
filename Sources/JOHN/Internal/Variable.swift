@@ -14,10 +14,10 @@ struct Variable {
         case attribute(String), child(Int)
     }
     enum ParsingPhase {
-        case stage, attribute, child
+        case stage, `subscript`
     }
     enum ParsingError: Error {
-        case NaN, garbageCharacters
+        case NaN, garbageCharacters, unterminatedSubscript
     }
     init(string: String) throws {
         let input = string.first != "$" ? string : String(string.dropFirst())
@@ -30,19 +30,8 @@ struct Variable {
         var parsingPhase: ParsingPhase? = .stage
         for character in input {
             if parsingPhase == nil {
-                
-            } else if parsingPhase == .stage {
-                
-            } else if parsingPhase == .child {
-                
-            } else if parsingPhase == .attribute {
-                
-            }
-            if parsingPhase == nil {
-                if character == "." {
-                    parsingPhase = .attribute
-                } else if character == "[" {
-                    parsingPhase = .child
+                if character == "[" {
+                    parsingPhase = .subscript
                 } else {
                     throw ParsingError.garbageCharacters
                 }
@@ -55,36 +44,25 @@ struct Variable {
                     }
                     stage = parsedStage
                     temp = ""
-                    if character == "." {
-                        parsingPhase = .attribute
-                    } else if character == "[" {
-                        parsingPhase = .child
+                    if character == "[" {
+                        parsingPhase = .subscript
                     } else {
                         throw ParsingError.garbageCharacters
                     }
                 }
-            } else if parsingPhase == .child {
-                if character.isNumber {
-                    temp.append(character)
-                } else if character == "]" {
-                    guard let parsedChild = Int(temp) else {
-                        throw ParsingError.NaN
+            } else if parsingPhase == .subscript {
+                if character == "]" {
+                    if let parsedChild = Int(temp) {
+                        /// Child
+                        path.append(.child(parsedChild))
+                    } else {
+                        /// Attribute
+                        path.append(.attribute(temp))
                     }
-                    path.append(.child(parsedChild))
                     temp = ""
                     parsingPhase = nil
                 } else {
-                    throw ParsingError.garbageCharacters
-                }
-            } else if parsingPhase == .attribute {
-                if character != "." && character != "[" {
                     temp.append(character)
-                } else {
-                    path.append(.attribute(temp))
-                    temp = ""
-                    if character == "[" {
-                        parsingPhase = .child
-                    }
                 }
             }
         }
@@ -94,13 +72,8 @@ struct Variable {
                     throw ParsingError.NaN
                 }
                 stage = parsedStage
-            } else if parsingPhase == .child {
-                guard let parsedChild = Int(temp) else {
-                    throw ParsingError.NaN
-                }
-                path.append(.child(parsedChild))
-            } else if parsingPhase == .attribute {
-                path.append(.attribute(temp))
+            } else {
+                throw ParsingError.unterminatedSubscript
             }
         }
         temp = ""

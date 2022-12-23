@@ -9,18 +9,23 @@ import Foundation
 import AsyncHTTPClient
 
 public struct JOHN: Codable, Equatable {
-    let about: Metadata
-    let pipeline: [Request]
+    let about: About
+    let pipeline: [Stage]
     let result: [String: String]
     
-    func execute(on client: HTTPClient? = nil) async throws -> [String: String] {
-        var responses: [Response?] = [nil]
-        for request in pipeline {
-            await responses.append(try request.execute(with: responses, on: client))
+    static func parse(string: String) -> Self? {
+        guard let data = string.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+    
+    func execute(on client: HTTPClient? = nil, with input: Input? = nil) async throws -> [String: String] {
+        var outputs: [Output?] = [input]
+        for stage in pipeline {
+            await outputs.append(try stage.execute(with: outputs, on: client))
         }
         var result = self.result
         for element in result {
-            result[element.key] = try Variable.substitute(responses: responses, in: element.value)
+            result[element.key] = try Variable.substitute(outputs: outputs, in: element.value)
         }
         return result
     }

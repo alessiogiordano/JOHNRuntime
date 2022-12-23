@@ -22,18 +22,18 @@ final class JOHNTests: XCTestCase {
                 "yield": "header"
             },
             {
-                "url": "http://127.0.0.1:8080/john/combo/$2.content-length",
+                "url": "http://127.0.0.1:8080/john/combo/$2[content-length]",
                 "header": {
-                    "john": "$2.content-length"
+                    "john": "$2[content-length]"
                 },
                 "query": {
-                    "john": "$2.content-length"
+                    "john": "$2[content-length]"
                 }
             }
         ],
         "result": {
-            "json": "$1.text",
-            "text": "$2.content-length",
+            "json": "$1[text]",
+            "text": "$2[content-length]",
             "combo": "$3"
         }
     }
@@ -43,8 +43,8 @@ final class JOHNTests: XCTestCase {
         let desiredOutput = JOHN(about: .init(name: "Sample Plugin", version: 1, protocol: "Sample Protocol", sha1: nil), pipeline: [
             .init(url: "http://127.0.0.1:8080/john/json", method: "GET", status: nil, header: nil, query: nil, body: nil, yield: nil),
             .init(url: "http://127.0.0.1:8080/john/text", method: nil, status: nil, header: nil, query: nil, body: nil, yield: .header),
-            .init(url: "http://127.0.0.1:8080/john/combo/$2.content-length", method: nil, status: nil, header: ["john": "$2.content-length"], query: ["john": "$2"], body: nil, yield: nil)
-        ], result: ["json": "$1.text", "text": "$2.content-length", "combo": "$3"])
+            .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", method: nil, status: nil, header: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"], body: nil, yield: nil)
+        ], result: ["json": "$1[text]", "text": "$2[content-length]", "combo": "$3"])
         let actualOutput = try! JSONDecoder().decode(JOHN.self, from: Self.examplePlugin.data(using: .utf8)!)
         
         XCTAssertEqual(desiredOutput, actualOutput)

@@ -8,19 +8,32 @@
 import Foundation
 
 extension Variable {
+    private enum SplittingError: Error { case unterminatedSubscript }
     private typealias StringComponent = (isVariable: Bool, value: String)
-    private static func splitString(_ string: String) -> [StringComponent] {
+    private static func splitString(_ string: String) throws -> [StringComponent] {
         var result: [StringComponent] = []
         var temp = ""
-        var parsingVariable = false
+        var parsingVariableName = false
+        var parsingVariableChild = false
         for character in string {
-            if parsingVariable {
-                if character.isWhitespace {
-                    parsingVariable = false
+            if parsingVariableName {
+                if character.isNumber {
+                    temp.append(String(character))
+                } else if character == "[" {
+                    parsingVariableChild = true
+                    parsingVariableName = false
+                    temp.append(String(character))
+                } else {
+                    parsingVariableName = false
                     result.append((true, temp))
                     temp = String(character)
-                } else {
-                    temp.append(String(character))
+                }
+            } else if parsingVariableChild {
+                temp.append(String(character))
+                if character == "]" {
+                    result.append((true, temp))
+                    parsingVariableChild = false
+                    temp = ""
                 }
             } else {
                 if character != "$" {
@@ -30,7 +43,7 @@ extension Variable {
                         temp = String(temp.dropLast())
                         temp.append(character)
                     } else {
-                        parsingVariable = true
+                        parsingVariableName = true
                         result.append((false, temp))
                         temp = String(character)
                     }
@@ -38,7 +51,8 @@ extension Variable {
             }
         }
         if temp.count > 0 {
-            result.append((parsingVariable, temp))
+            if (parsingVariableChild) { throw SplittingError.unterminatedSubscript }
+            result.append((parsingVariableName, temp))
             temp = ""
         }
         return result
@@ -48,33 +62,33 @@ extension Variable {
         case overflow, notFound
     }
     
-    private static func substitute(responses: [Response?], in components: [StringComponent], urlEncoded: Bool) throws -> String {
+    private static func substitute(outputs: [Output?], in components: [StringComponent], urlEncoded: Bool) throws -> String {
         var result = ""
         for element in components {
             if element.isVariable {
                 let parsedVariable = try Variable(string: element.value)
-                if parsedVariable.stage >= responses.count {
+                if parsedVariable.stage >= outputs.count {
                     throw SubstitutionError.overflow
                 }
-                guard let rootResponse = responses[parsedVariable.stage] else {
+                guard let rootOutput = outputs[parsedVariable.stage] else {
                     throw SubstitutionError.notFound
                 }
-                var response = rootResponse
+                var output = rootOutput
                 for component in parsedVariable.path {
                     switch component {
-                    case .attribute(let name):  guard let value = response[name] else {
+                    case .attribute(let name):  guard let value = output[name] else {
                                                     throw SubstitutionError.notFound
                                                 }
-                                                response = value
+                                                output = value
                                                 break
-                    case .child(let index):     guard let value = response[index] else {
+                    case .child(let index):     guard let value = output[index] else {
                                                     throw SubstitutionError.notFound
                                                 }
-                                                response = value
+                                                output = value
                                                 break
                     }
                 }
-                guard let textContent = response.text else {
+                guard let textContent = output.text else {
                     throw SubstitutionError.notFound
                 }
                 if urlEncoded {
@@ -90,7 +104,7 @@ extension Variable {
         return result
     }
     
-    static func substitute(responses: [Response?], in string: String, urlEncoded: Bool = false) throws -> String {
-        try Self.substitute(responses: responses, in: Self.splitString(string), urlEncoded: urlEncoded)
+    static func substitute(outputs: [Output?], in string: String, urlEncoded: Bool = false) throws -> String {
+        try Self.substitute(outputs: outputs, in: Self.splitString(string), urlEncoded: urlEncoded)
     }
 }
