@@ -14,6 +14,7 @@ struct Stage: Codable, Equatable {
     let header: [String: String]?
     let query: [String: String]?
     let body: String?
+    let paginate: String?
     let yield: Yield?
     enum Yield: String, Codable, Equatable { case header, body }
 }

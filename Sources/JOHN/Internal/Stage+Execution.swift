@@ -11,7 +11,19 @@ import AsyncHTTPClient
 extension Stage {
     enum StageError: Error { case statusNotValid }
     
-    func execute(with variables: [Output?], on client: HTTPClient? = nil) async throws -> Output? {
+    func execute(paginating: String, with variables: [Output?], on client: HTTPClient? = nil) async throws -> Output? {
+        var outputs: [Output] = []
+        var currentURL: String? = self.url
+        repeat {
+            let output = try await self.execute(with: variables, on: client, at: currentURL)
+            guard let output else { break }
+            outputs.append(output)
+            currentURL = try? Variable.substitute(outputs: [output], in: "$0\(paginating)")
+        } while (currentURL != nil)
+        return .merge(.pagination, items: outputs)
+    }
+    
+    func execute(with variables: [Output?], on client: HTTPClient? = nil, at url: String? = nil) async throws -> Output? {
         /// Setup HTTP Client if the user hasn't provided one
         let httpClient: HTTPClient = client ?? HTTPClient(eventLoopGroupProvider: .createNew)
         defer {
@@ -19,8 +31,7 @@ extension Stage {
                 httpClient.shutdown({ _ in })
             }
         }
-        
-        let url = try Variable.substitute(outputs: variables, in: self.url, urlEncoded: true)
+        let url = try Variable.substitute(outputs: variables, in: url ?? self.url, urlEncoded: true)
         var request = HTTPClientRequest(url: url)
         
         if let query, let url = URL(string: url) {
@@ -37,17 +48,18 @@ extension Stage {
         if let status, status.contains(Int(response.status.code)) == false {
             throw StageError.statusNotValid
         }
-        let expectedBytes = response.headers.first(name: "content-length").flatMap(Int.init)
-        guard let expectedBytes, expectedBytes > 0 else { return nil }
         if self.yield == .header {
             var headers: [String: Any] = [:]
             /// Reversed so that the first instance of a header replaces all the other ones
             response.headers.reversed().forEach { header in
                 headers[header.name] = header.value
             }
-            return Output(parsedJSON: headers)
+            return Output(dictionary: headers)
         } else {
-            let body = String(buffer: try await response.body.collect(upTo: expectedBytes))
+            var body = ""
+            for try await buffer in response.body {
+                body.append(contentsOf: String(buffer: buffer))
+            }
             if response.headers.first(name: "content-type")?.contains("application/json") == true {
                 return Output(json: body)
             } else {

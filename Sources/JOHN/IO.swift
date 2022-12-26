@@ -10,6 +10,10 @@ import Foundation
 public typealias Input = Output
 public struct Output {
     let wrappedValue: Any
+    
+    let source: Source
+    public enum Source { case single, pagination }
+    
     var text: String? { wrappedValue as? String }
     subscript(_ index: Int) -> Output? {
         if let array = wrappedValue as? [Any] {
@@ -21,21 +25,34 @@ public struct Output {
             return Output.init(wrappedValue: dictionary[entry] as Any)
         } else { return nil }
     }
-    private init(wrappedValue: Any) {
+    internal init(_ source: Source = .single, wrappedValue: Any) {
         self.wrappedValue = wrappedValue
+        self.source = source
     }
-    init(text: String) {
+    public init(_ source: Source = .single, text: String) {
         self.wrappedValue = text
+        self.source = source
     }
-    init?(json: String) {
+    public init?(_ source: Source = .single, json: String) {
         guard let data = json.data(using: .utf8) else { return nil }
-        self.init(json: data)
+        self.init(source, json: data)
     }
-    init?(json: Data) {
-        guard let json = try? JSONSerialization.jsonObject(with: json) else { return nil }
+    public init?(_ source: Source = .single, json: Data) {
+        guard let json = try? JSONSerialization.jsonObject(with: json, options: .topLevelDictionaryAssumed) else { return nil }
         self.wrappedValue = json
+        self.source = source
     }
-    init(parsedJSON: [String: Any]) {
-        self.wrappedValue = parsedJSON
+    public init(_ source: Source = .single, dictionary: [String: Any]) {
+        self.wrappedValue = dictionary
+        self.source = source
+    }
+    
+    static func merge(_ source: Source = .single, items: Output...) -> Output {
+        return Self.merge(items: items)
+    }
+    static func merge(_ source: Source = .single, items: [Output]) -> Output {
+        return Self.init(source, wrappedValue: items.map {
+            $0.wrappedValue
+        })
     }
 }

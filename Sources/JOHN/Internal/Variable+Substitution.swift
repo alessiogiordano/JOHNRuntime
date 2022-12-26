@@ -59,7 +59,46 @@ extension Variable {
     }
     
     enum SubstitutionError: Error {
-        case overflow, notFound
+        case overflow, notFound, corruptedPagination
+    }
+    
+    private func traversePath(_ path: [Path], of output: Output) throws -> Output {
+        var output = output
+        for component in self.path {
+            switch component {
+            case .attribute(let name):  guard let value = output[name] else {
+                                            throw SubstitutionError.notFound
+                                        }
+                                        output = value
+                                        break
+            case .child(let index):     guard let value = output[index] else {
+                                            throw SubstitutionError.notFound
+                                        }
+                                        output = value
+                                        break
+            }
+        }
+        return output
+    }
+    
+    public func resolve(with outputs: [Output?], expectsPagination: Bool = true) throws -> Output {
+        if self.stage >= outputs.count {
+            throw SubstitutionError.overflow
+        }
+        guard let rootOutput = outputs[self.stage] else {
+            throw SubstitutionError.notFound
+        }
+        
+        if rootOutput.source == .pagination && expectsPagination {
+            guard let pages = rootOutput.wrappedValue as? [Any] else { throw SubstitutionError.corruptedPagination }
+            return Output.merge(.pagination, items: try pages.map {
+                var array: [Output?] = .init(repeating: nil, count: self.stage)
+                array.append(Output(wrappedValue: $0))
+                return try self.resolve(with: array)
+            })
+        } else {
+            return try self.traversePath(path, of: rootOutput)
+        }
     }
     
     private static func substitute(outputs: [Output?], in components: [StringComponent], urlEncoded: Bool) throws -> String {
@@ -67,27 +106,7 @@ extension Variable {
         for element in components {
             if element.isVariable {
                 let parsedVariable = try Variable(string: element.value)
-                if parsedVariable.stage >= outputs.count {
-                    throw SubstitutionError.overflow
-                }
-                guard let rootOutput = outputs[parsedVariable.stage] else {
-                    throw SubstitutionError.notFound
-                }
-                var output = rootOutput
-                for component in parsedVariable.path {
-                    switch component {
-                    case .attribute(let name):  guard let value = output[name] else {
-                                                    throw SubstitutionError.notFound
-                                                }
-                                                output = value
-                                                break
-                    case .child(let index):     guard let value = output[index] else {
-                                                    throw SubstitutionError.notFound
-                                                }
-                                                output = value
-                                                break
-                    }
-                }
+                let output = try parsedVariable.resolve(with: outputs, expectsPagination: false)
                 guard let textContent = output.text else {
                     throw SubstitutionError.notFound
                 }
