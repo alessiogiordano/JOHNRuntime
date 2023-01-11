@@ -38,7 +38,8 @@ public struct Output {
         self.init(source, json: data)
     }
     public init?(_ source: Source = .single, json: Data) {
-        guard let json = try? JSONSerialization.jsonObject(with: json, options: .topLevelDictionaryAssumed) else { return nil }
+        // options: .topLevelDictionaryAssumed is only available from macOS 12 onwards
+        guard let json = try? JSONSerialization.jsonObject(with: json) else { return nil }
         self.wrappedValue = json
         self.source = source
     }
