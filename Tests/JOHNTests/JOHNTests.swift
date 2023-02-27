@@ -41,9 +41,9 @@ final class JOHNTests: XCTestCase {
     func testParsing() throws {
         
         let desiredOutput = JOHN(about: .init(name: "Sample Plugin", version: 1, protocol: "Sample Protocol", sha1: nil), pipeline: [
-            .init(url: "http://127.0.0.1:8080/john/json", method: "GET", status: nil, header: nil, query: nil, body: nil, paginate: nil, yield: nil),
-            .init(url: "http://127.0.0.1:8080/john/text", method: nil, status: nil, header: nil, query: nil, body: nil, paginate: nil, yield: .header),
-            .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", method: nil, status: nil, header: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"], body: nil, paginate: nil, yield: nil)
+            .init(url: "http://127.0.0.1:8080/john/json", method: "GET"),
+            .init(url: "http://127.0.0.1:8080/john/text", yield: .header),
+            .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", header: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"])
         ], result: ["json": "$1[text]", "text": "$2[content-length]", "combo": "$3"])
         let actualOutput = try! JSONDecoder().decode(JOHN.self, from: Self.examplePlugin.data(using: .utf8)!)
         
@@ -51,7 +51,7 @@ final class JOHNTests: XCTestCase {
     }
     func testExecution() async throws {
         let plugin = try! JSONDecoder().decode(JOHN.self, from: Self.examplePlugin.data(using: .utf8)!)
-        let result = try await plugin.execute()
+        let result = try await plugin.execute(limitRepeatAt: 1)
         
         XCTAssertEqual(result["json"] as! String, "This is a JSON Response")
         XCTAssertEqual(result["text"] as! String, "27")

@@ -9,21 +9,8 @@ import Foundation
 import AsyncHTTPClient
 
 extension Stage {
-    enum StageError: Error { case statusNotValid }
-    
-    func execute(paginating: String, with variables: [Output?], on client: HTTPClient? = nil) async throws -> Output? {
-        var outputs: [Output] = []
-        var currentURL: String? = self.url
-        repeat {
-            let output = try await self.execute(with: variables, on: client, at: currentURL)
-            guard let output else { break }
-            outputs.append(output)
-            currentURL = try? Variable.substitute(outputs: [output], in: "$0\(paginating)")
-        } while (currentURL != nil)
-        return .merge(.pagination, items: outputs)
-    }
-    
-    func execute(with variables: [Output?], on client: HTTPClient? = nil, at url: String? = nil) async throws -> Output? {
+    enum ExecutionError: Error { case statusNotValid }
+    func execute(with variables: [IOProtocol?], on client: HTTPClient? = nil, at url: String? = nil) async throws -> IOProtocol? {
         /// Setup HTTP Client if the user hasn't provided one
         let httpClient: HTTPClient = client ?? HTTPClient(eventLoopGroupProvider: .createNew)
         defer {
@@ -41,12 +28,32 @@ extension Stage {
         }
         if let method { request.method = .init(rawValue: try Variable.substitute(outputs: variables, in: method)) }
         if let header { request.headers = .init(try header.map { ($0.key, try Variable.substitute(outputs: variables, in: $0.value)) }) }
-        if let body { request.body = .bytes(.init(string: try Variable.substitute(outputs: variables, in: body))) }
+        switch body {
+            case .text(let body):
+                request.body = .bytes(.init(string: try Variable.substitute(outputs: variables, in: body)))
+            case .dictionary(let body):
+                let substitutedBody = try body.reduce(into: [String: String]()) { body, element in
+                    body[try Variable.substitute(outputs: variables, in: element.key)] = try Variable.substitute(outputs: variables, in: element.value)
+                }
+                switch self.encode {
+                    case .form:
+                        let encodedBody = substitutedBody.reduce(into: "") { output, element in
+                            guard let key = element.key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                                  let value = element.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                            else { return }
+                            output += "\(output.count != 0 ? "&" : "")\(key)=\(value)"
+                        }
+                        request.body = .bytes(.init(string: encodedBody))
+                    default:
+                        request.body = .bytes(try JSONEncoder().encode(substitutedBody))
+                }
+            case .none: break
+        }
         
         let response = try await httpClient.execute(request, timeout: .seconds(30))
         
         if let status, status.contains(Int(response.status.code)) == false {
-            throw StageError.statusNotValid
+            throw ExecutionError.statusNotValid
         }
         if self.yield == .header {
             var headers: [String: Any] = [:]
@@ -54,16 +61,38 @@ extension Stage {
             response.headers.reversed().forEach { header in
                 headers[header.name] = header.value
             }
-            return Output(dictionary: headers)
+            return IOPayload(dictionary: headers)
         } else {
             var body = ""
             for try await buffer in response.body {
                 body.append(contentsOf: String(buffer: buffer))
             }
-            if response.headers.first(name: "content-type")?.contains("application/json") == true {
-                return Output(json: body)
-            } else {
-                return Output(text: body)
+            var decodingStrategy: Decode = self.decode ?? .auto
+            if decodingStrategy == .auto {
+                if let contentType = response.headers.first(name: "content-type") {
+                    if contentType.contains("application/json") {
+                        decodingStrategy = .json
+                    } else if contentType.contains("application/x-www-form-urlencoded") {
+                        decodingStrategy = .form
+                    } else if contentType.contains("text/xml") || contentType.contains("application/xml") || contentType.hasSuffix("+xml") {
+                        decodingStrategy = .xml
+                    } else {
+                        decodingStrategy = .raw
+                    }
+                } else {
+                    decodingStrategy = .raw
+                }
+            }
+            switch decodingStrategy {
+                case .json:
+                    return IOPayload(json: body)
+                case .form:
+                    return IOPayload(webForm: body)
+                case .xml:
+                    /// public func getString(at index: Int, length: Int) -> String? in Swift-NIO always uses Unicode.UTF8.self encoding
+                    return await IOMarkup(xml: body.data(using: .utf8))
+                default:
+                    return IOPayload(text: body)
             }
         }
     }

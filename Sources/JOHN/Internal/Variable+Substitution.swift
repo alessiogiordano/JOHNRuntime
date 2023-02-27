@@ -62,7 +62,7 @@ extension Variable {
         case overflow, notFound, corruptedPagination
     }
     
-    private func traversePath(_ path: [Path], of output: Output) throws -> Output {
+    private func traversePath(_ path: [Path], of output: any IOProtocol) throws -> any IOProtocol {
         var output = output
         for component in self.path {
             switch component {
@@ -81,32 +81,22 @@ extension Variable {
         return output
     }
     
-    public func resolve(with outputs: [Output?], expectsPagination: Bool = true) throws -> Output {
+    public func resolve(with outputs: [(any IOProtocol)?]) throws -> any IOProtocol {
         if self.stage >= outputs.count {
             throw SubstitutionError.overflow
         }
         guard let rootOutput = outputs[self.stage] else {
             throw SubstitutionError.notFound
         }
-        
-        if rootOutput.source == .pagination && expectsPagination {
-            guard let pages = rootOutput.wrappedValue as? [Any] else { throw SubstitutionError.corruptedPagination }
-            return Output.merge(.pagination, items: try pages.map {
-                var array: [Output?] = .init(repeating: nil, count: self.stage)
-                array.append(Output(wrappedValue: $0))
-                return try self.resolve(with: array)
-            })
-        } else {
-            return try self.traversePath(path, of: rootOutput)
-        }
+        return try self.traversePath(path, of: rootOutput)
     }
     
-    private static func substitute(outputs: [Output?], in components: [StringComponent], urlEncoded: Bool) throws -> String {
+    private static func substitute(outputs: [(any IOProtocol)?], in components: [StringComponent], urlEncoded: Bool) throws -> String {
         var result = ""
         for element in components {
             if element.isVariable {
                 let parsedVariable = try Variable(string: element.value)
-                let output = try parsedVariable.resolve(with: outputs, expectsPagination: false)
+                let output = try parsedVariable.resolve(with: outputs)
                 guard let textContent = output.text else {
                     throw SubstitutionError.notFound
                 }
@@ -123,7 +113,7 @@ extension Variable {
         return result
     }
     
-    static func substitute(outputs: [Output?], in string: String, urlEncoded: Bool = false) throws -> String {
+    static func substitute(outputs: [(any IOProtocol)?], in string: String, urlEncoded: Bool = false) throws -> String {
         try Self.substitute(outputs: outputs, in: Self.splitString(string), urlEncoded: urlEncoded)
     }
 }
