@@ -10,7 +10,7 @@ import AsyncHTTPClient
 
 extension Stage {
     enum ExecutionError: Error { case statusNotValid }
-    func execute(with variables: [IOProtocol?], on client: HTTPClient? = nil, at url: String? = nil) async throws -> IOProtocol? {
+    func execute(with variables: [IOProtocol?], bearing credentials: Options.Credentials? = nil, on client: HTTPClient? = nil) async throws -> IOProtocol? {
         /// Setup HTTP Client if the user hasn't provided one
         let httpClient: HTTPClient = client ?? HTTPClient(eventLoopGroupProvider: .createNew)
         defer {
@@ -18,7 +18,7 @@ extension Stage {
                 httpClient.shutdown({ _ in })
             }
         }
-        let url = try Variable.substitute(outputs: variables, in: url ?? self.url, urlEncoded: true)
+        let url = try Variable.substitute(outputs: variables, in: self.url, urlEncoded: true)
         var request = HTTPClientRequest(url: url)
         
         if let query, let url = URL(string: url) {
@@ -28,6 +28,7 @@ extension Stage {
         }
         if let method { request.method = .init(rawValue: try Variable.substitute(outputs: variables, in: method)) }
         if let header { request.headers = .init(try header.map { ($0.key, try Variable.substitute(outputs: variables, in: $0.value)) }) }
+        try setAuthorizationHeader(from: credentials, on: &request)
         switch body {
             case .text(let body):
                 request.body = .bytes(.init(string: try Variable.substitute(outputs: variables, in: body)))

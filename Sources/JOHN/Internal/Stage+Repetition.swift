@@ -9,7 +9,7 @@ import Foundation
 import AsyncHTTPClient
 
 struct Repetition: Codable, Equatable {
-    enum Error: Swift.Error { case notRequested }
+    enum Error: Swift.Error { case notRequested, notAllowed }
     ///
     let start: Int?
     let step: Int?
@@ -18,8 +18,9 @@ struct Repetition: Codable, Equatable {
 }
 
 extension Stage {
-    func `repeat`(until stop: Int, with variables: [(any IOProtocol)?], on client: HTTPClient? = nil) async throws -> IOPagination? {
+    func `repeat`(until stop: Int, bearing credentials: Options.Credentials? = nil, with variables: [(any IOProtocol)?], on client: HTTPClient? = nil) async throws -> IOPagination? {
         guard let repetition = self.repeat else { throw Repetition.Error.notRequested }
+        guard stop > 0 else { throw Repetition.Error.notAllowed }
         /// Setup
         let start = repetition.start ?? 0
         let step = (repetition.step ?? 1) > 0 ? (repetition.step ?? 1) : 1
@@ -29,7 +30,7 @@ extension Stage {
         /// Iterate
         var count = 0
         repeat {
-            guard let page = try? await self.execute(with: [variables, [output]].flatMap { $0 }, on: client)
+            guard let page = try? await self.execute(with: [variables, [output]].flatMap { $0 }, bearing: credentials, on: client)
                 else { break }
             output.appendPage(page)
             count = output.iterator!.advance()
@@ -38,7 +39,4 @@ extension Stage {
         output.iterator = nil
         return output
     }
-    // TODO: Handle output object, insert count inside it, verify conditions to keep going, execute by appending the handled object to the previous stages
-    /// Assertion is handled by the execution block, even repetitive one
-    /// The plugin caller must specify a limit to the iteration count
 }

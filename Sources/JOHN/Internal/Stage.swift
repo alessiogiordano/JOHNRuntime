@@ -14,6 +14,8 @@ struct Stage: Codable, Equatable {
     let `repeat`: Repetition?
     /// Stage+Merger
     let merge: Merger?
+    /// Stage+Authorization
+    let authorization: Authorization?
     /// Fields
     let url: String
     let method: String?
@@ -30,13 +32,15 @@ struct Stage: Codable, Equatable {
     let decode: Decode?
     enum Decode: Codable { case auto, raw, json, form, xml }
     
-    init(url: String, assert: [String: Assertion]? = nil, `repeat`: Repetition? = nil, merge: Merger? = nil, method: String? = nil, status: [Int]? = nil, header: [String: String]? = nil, query: [String: String]? = nil, body: Body? = nil, /*body: String? = nil, paginate: String? = nil,*/ yield: Yield? = nil, encode: Encode? = nil, decode: Decode? = nil) {
+    init(url: String, assert: [String: Assertion]? = nil, `repeat`: Repetition? = nil, merge: Merger? = nil, authorization: Authorization? = nil , method: String? = nil, status: [Int]? = nil, header: [String: String]? = nil, query: [String: String]? = nil, body: Body? = nil, /*body: String? = nil, paginate: String? = nil,*/ yield: Yield? = nil, encode: Encode? = nil, decode: Decode? = nil) {
         /// Stage+Assertion
         self.assert = assert
         /// Stage+Repetition
         self.repeat = `repeat`
         /// Stage+Merger
         self.merge = merge
+        /// Stage+Authorization
+        self.authorization = authorization
         /// Fields
         self.url = url
         self.method = method
