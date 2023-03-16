@@ -10,7 +10,18 @@ import Foundation
 struct IOPayload: IOProtocol {
     let wrappedValue: Any
     
-    var text: String? { wrappedValue as? String }
+    var text: String? {
+        return wrappedValue as? String
+        /*
+        if let stringValue = wrappedValue as? String {
+            return stringValue
+        } else if wrappedValue as? [Any] == nil, wrappedValue as? [String: Any] == nil, let convertibleValue = wrappedValue as? CustomStringConvertible {
+            return convertibleValue.description
+        } else {
+            return nil
+        }
+        */
+    }
     
     var indices: Range<Int>? {
         if let array = wrappedValue as? [Any] {

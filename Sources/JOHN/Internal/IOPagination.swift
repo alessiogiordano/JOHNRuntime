@@ -161,7 +161,9 @@ struct IOPagination: IOProtocol {
         switch accessPolicy[key] ?? defaultAccessPolicy {
             case .first:    return wrappedPages.first?[key]
             case .keep:     return firstInstanceOfDictionaryNode(wrappedPages)?[key]
-            case .append:   return nil
+            case .append:   return IOPayload(array: wrappedPages.compactMap {
+                                return $0[key]
+                            })
             case .replace:  return firstInstanceOfDictionaryNode(wrappedPages.reversed())?[key]
             case .last:     return wrappedPages.last?[key]
             case .none:     return nil

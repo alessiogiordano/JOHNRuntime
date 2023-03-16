@@ -11,6 +11,9 @@ import AsyncHTTPClient
 extension Stage {
     enum ExecutionError: Error { case statusNotValid }
     func execute(with variables: [IOProtocol?], bearing credentials: Options.Credentials? = nil, on client: HTTPClient? = nil) async throws -> IOProtocol? {
+        /// Verify assertions
+        try verifyAssertion(with: variables)
+        
         /// Setup HTTP Client if the user hasn't provided one
         let httpClient: HTTPClient = client ?? HTTPClient(eventLoopGroupProvider: .createNew)
         defer {
@@ -18,7 +21,8 @@ extension Stage {
                 httpClient.shutdown({ _ in })
             }
         }
-        let url = try Variable.substitute(outputs: variables, in: self.url, urlEncoded: true)
+        /// The url encoding is necessary to safely interpolate the url into an existing url, but if the variable contains a full url, it will lead to non-encodable parts being mistakenly encoded
+        let url = try Variable.substitute(outputs: variables, in: self.url, urlEncoded: self.url.first != "$")
         var request = HTTPClientRequest(url: url)
         
         if let query, let url = URL(string: url) {
@@ -45,8 +49,14 @@ extension Stage {
                             output += "\(output.count != 0 ? "&" : "")\(key)=\(value)"
                         }
                         request.body = .bytes(.init(string: encodedBody))
+                        if !request.headers.contains(name: "Content-Type") {
+                            request.headers.replaceOrAdd(name: "Content-Type", value: "application/x-www-form-urlencoded")
+                        }
                     default:
                         request.body = .bytes(try JSONEncoder().encode(substitutedBody))
+                        if !request.headers.contains(name: "Content-Type") {
+                            request.headers.add(name: "Content-Type", value: "application/json")
+                        }
                 }
             case .none: break
         }
@@ -70,7 +80,7 @@ extension Stage {
             }
             var decodingStrategy: Decode = self.decode ?? .auto
             if decodingStrategy == .auto {
-                if let contentType = response.headers.first(name: "content-type") {
+                if let contentType = response.headers.first(name: "Content-Type") {
                     if contentType.contains("application/json") {
                         decodingStrategy = .json
                     } else if contentType.contains("application/x-www-form-urlencoded") {
