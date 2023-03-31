@@ -15,6 +15,9 @@ let package = Package(
         .library(
             name: "JOHN",
             targets: ["JOHN"]),
+        .library(
+            name: "CLAFF",
+            targets: ["CLAFF"]),
         .executable(
             name: "AUXServer",
             targets: ["AUXServer"]),
@@ -40,6 +43,7 @@ let package = Package(
             dependencies: [
                 "AUXClient",
                 "JOHN",
+                "CLAFF",
                 // 💧 A server-side Swift web framework.
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "Fluent", package: "fluent"),
@@ -69,6 +73,8 @@ let package = Package(
             dependencies: [
                 .product(name: "AsyncHTTPClient", package: "async-http-client")
             ]),
+        .target(
+            name: "CLAFF"),
         .executableTarget(
             name: "AUXServer",
             dependencies: ["AUXLibrary"]),
