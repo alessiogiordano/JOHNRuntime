@@ -11,5 +11,4 @@ struct About: Codable, Equatable {
     let name: String
     let version: Int
     let `protocol`: String
-    let sha1: String?
 }

@@ -12,15 +12,12 @@ struct IOPayload: IOProtocol {
     
     var text: String? {
         return wrappedValue as? String
-        /*
-        if let stringValue = wrappedValue as? String {
-            return stringValue
-        } else if wrappedValue as? [Any] == nil, wrappedValue as? [String: Any] == nil, let convertibleValue = wrappedValue as? CustomStringConvertible {
-            return convertibleValue.description
-        } else {
-            return nil
-        }
-        */
+    }
+    var number: Double? {
+        return wrappedValue as? Double
+    }
+    var boolean: Bool? {
+        return wrappedValue as? Bool
     }
     
     var indices: Range<Int>? {

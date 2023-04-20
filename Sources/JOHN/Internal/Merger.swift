@@ -1,5 +1,5 @@
 //
-//  Stage+Merger.swift
+//  Merger.swift
 //  
 //
 //  Created by Alessio Giordano on 22/02/23.
@@ -18,7 +18,7 @@ struct Merger: Codable, Equatable {
 }
 
 extension Stage {
-    func merge(from variables: [(any IOProtocol)?]) throws -> IOPagination? {
+    func merge(from variables: [(any IOProtocol)?], with context: Execution? = nil) throws -> IOPagination? {
         guard let merger = self.merge,
               let stage = merger.stage,
               stage.isEmpty == false else { throw Merger.Error.notRequested }
@@ -27,6 +27,12 @@ extension Stage {
             guard variables.indices.contains($0) else { throw Merger.Error.outOfBounds }
             guard let page = variables[$0] else { return }
             output.appendPage(page)
+        }
+        // MARK: didMergeWith event
+        if let context {
+            context.delegate?.debug(didMergeStage: context.currentStageIndex, withStages: stage, defaultPolicy: merger.default?.rawValue ?? Merger.Policy.none.rawValue, overridenBy: merger.override.mapValues {
+                $0.rawValue
+            })
         }
         return output
     }

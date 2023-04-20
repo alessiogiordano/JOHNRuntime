@@ -18,6 +18,9 @@ let package = Package(
         .library(
             name: "CLAFF",
             targets: ["CLAFF"]),
+        .library(
+            name: "HTMLParser",
+            targets: ["HTMLParser"]),
         .executable(
             name: "AUXServer",
             targets: ["AUXServer"]),
@@ -71,10 +74,14 @@ let package = Package(
         .target(
             name: "JOHN",
             dependencies: [
-                .product(name: "AsyncHTTPClient", package: "async-http-client")
+                "HTMLParser",
+                .product(name: "AsyncHTTPClient", package: "async-http-client"),
+                .product(name: "Logging", package: "swift-log")
             ]),
         .target(
             name: "CLAFF"),
+        .target(
+            name: "HTMLParser"),
         .executableTarget(
             name: "AUXServer",
             dependencies: ["AUXLibrary"]),

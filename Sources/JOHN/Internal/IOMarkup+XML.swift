@@ -5,13 +5,14 @@
 //  Created by Alessio Giordano on 25/02/23.
 //
 
+import HTMLParser
 import Foundation
 #if canImport(FoundationXML)
 import FoundationXML
 #endif
 
 extension IOMarkup {
-    init?(xml: Data?) async {
+    init?(xml: Data?, containingJSON: Bool = false) async {
         guard let xml else { return nil }
         let delegate = XML()
         do {
@@ -31,23 +32,69 @@ extension IOMarkup {
             }
         } catch { return nil }
         guard let root = delegate.root else { return nil }
-        self.init(recursiveConversionOfElement: root) /// Root text nodes are not allowed
+        self.init(recursiveConversionOfElement: root, parsingTextAsJSON: containingJSON) /// Root text nodes are not allowed
     }
-    private init?(recursiveConversionOfElement node: XML.Node) {
+    init?(soap: Data?, containingJSON: Bool = false) async {
+        guard let root = await Self.init(xml: soap, containingJSON: containingJSON) else { return nil }
+        /// Looking for Envelope
+        guard let envelopeIndex = root.indices?.first(where: {
+            let tagName = root[$0]?.text?.uppercased()
+            return tagName?.hasSuffix(":ENVELOPE") ?? false || tagName == "ENVELOPE"
+        }), let envelope = root[envelopeIndex] else { return nil }
+        /// Looking for Body
+        guard let bodyIndex = envelope.indices?.first(where: {
+            let tagName = envelope[$0]?.text?.uppercased()
+            return tagName?.hasSuffix(":BODY") ?? false || tagName == "BODY"
+        }), let body = envelope[bodyIndex] as? Self else { return nil }
+        self.text = body.text
+        self.wrappedAttributes = body.wrappedAttributes
+        self.wrappedChildren = body.wrappedChildren
+        self.caseInsensitive = false
+    }
+    init?(html: Data?, containingJSON: Bool = false) async {
+        guard let html else { return nil }
+        let delegate = XML()
+        do {
+            /// Since HTMLParser is a drop-in replacement for XMLParser, it predates Swift Concurrency and it is necessary to wrap it
+            _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
+                do {
+                    let parser = HTMLParser(data: html)
+                    parser.delegate = delegate
+                    _ = parser.parse()
+                    if let error = parser.parserError {
+                        throw error
+                    }
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+                continuation.resume()
+            }
+        } catch { return nil }
+        guard let root = delegate.root else { return nil }
+        self.init(recursiveConversionOfElement: root, caseInsensitive: true, parsingTextAsJSON: containingJSON) /// Root text nodes are not allowed
+    }
+    private init?(recursiveConversionOfElement node: XML.Node, caseInsensitive: Bool = false, parsingTextAsJSON: Bool = false) {
         if case .element(let tagName, let attributes) = node.value {
             self.text = tagName
+            self.caseInsensitive = caseInsensitive
             self.wrappedAttributes = IOPayload(dictionary: attributes)
             self.wrappedChildren = IOPayload(array: node.children.compactMap {
                 switch $0.value {
-                case .element(_, _):    return IOMarkup.init(recursiveConversionOfElement: $0)
-                case .text(let string): return IOPayload(text: string)
+                case .element(_, _):
+                    return IOMarkup.init(recursiveConversionOfElement: $0)
+                case .text(let string):
+                    if parsingTextAsJSON {
+                        return IOPayload(json: string) ?? IOPayload(text: string)
+                    } else {
+                        return IOPayload(text: string)
+                    }
                 }
             })
         } else { return nil }
     }
     
     /// Class used to parse the XML Document Tree
-    class XML: NSObject, XMLParserDelegate {
+    class XML: NSObject, XMLParserDelegate, HTMLParserDelegate {
         // MARK: Document tree
         var pending: Node? = nil {
             didSet {
@@ -113,6 +160,22 @@ extension IOMarkup {
         }
         /// End of element
         func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
+            pending = pending?.close() /// Equivalent of setting self.depth -= 1 in the Apple demo
+        }
+        
+        // MARK: HTMLParserDelegate
+        /// Start of element
+        func parser(_ parser: HTMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+            let element = Node(.element(tagName: elementName, attributes: attributeDict))
+            pending?.append(elementNode: element)
+            self.pending = element /// Equivalent of setting self.depth += 1 in the Apple demo
+        }
+        /// Contents of element
+        func parser(_ parser: HTMLParser, foundCharacters string: String) {
+            pending?.append(textNode: string)
+        }
+        /// End of element
+        func parser(_ parser: HTMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
             pending = pending?.close() /// Equivalent of setting self.depth -= 1 in the Apple demo
         }
     }

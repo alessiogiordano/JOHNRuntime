@@ -40,7 +40,7 @@ final class JOHNTests: XCTestCase {
     """
     func testParsing() throws {
         
-        let desiredOutput = JOHN(about: .init(name: "Sample Plugin", version: 1, protocol: "Sample Protocol", sha1: nil), pipeline: [
+        let desiredOutput = JOHN(about: .init(name: "Sample Plugin", version: 1, protocol: "Sample Protocol"), pipeline: [
             .init(url: "http://127.0.0.1:8080/john/json", method: "GET"),
             .init(url: "http://127.0.0.1:8080/john/text", yield: .header),
             .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", header: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"])

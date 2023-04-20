@@ -42,30 +42,45 @@ struct IOPagination: IOProtocol {
         }
     }
     
-    // MARK: Text node getter
+    // MARK: Single value node getter
     var text: String? {
+        getSingleValue { payload in
+            payload?.text
+        }
+    }
+    var number: Double? {
+        getSingleValue { payload in
+            payload?.number
+        }
+    }
+    var boolean: Bool? {
+        getSingleValue { payload in
+            payload?.boolean
+        }
+    }
+    private func getSingleValue<T>(with getter: @escaping ((any IOProtocol)?) -> T?) -> T? {
         /// Reuse code for both .keep and .replace policies
-        let firstInstanceOfTextNode: ([any IOProtocol]) -> String? = { collection in
-            var text: String? = nil
-            for value in collection {
-                text = value.text
-                if text != nil {
+        let firstInstanceOfSingleValueNode: ([any IOProtocol]) -> T? = { collection in
+            var value: T? = nil
+            for payload in collection {
+                value = getter(payload)
+                if value != nil {
                     break
                 }
             }
-            return text
+            return value
         }
-        /// Keep returns the first non nil text node starting from the beginning of the paginated payload
+        /// Keep returns the first non nil single value node starting from the beginning of the paginated payload
         /// First always returns the value of the first page
-        /// Replace returns the first non nil text node starting from the end of the paginated payload
+        /// Replace returns the first non nil single value node starting from the end of the paginated payload
         /// Last always returns the value of the last page
         /// Append doesn't make sense without a concatenation policy so it is skipped
         switch defaultAccessPolicy {
-            case .first:    return wrappedPages.first?.text
-            case .keep:     return firstInstanceOfTextNode(wrappedPages)
+            case .first:    return getter(wrappedPages.first)
+            case .keep:     return firstInstanceOfSingleValueNode(wrappedPages)
             case .append:   return nil
-            case .replace:  return firstInstanceOfTextNode(wrappedPages.reversed())
-            case .last:     return wrappedPages.last?.text
+            case .replace:  return firstInstanceOfSingleValueNode(wrappedPages.reversed())
+            case .last:     return getter(wrappedPages.last)
             case .none:     return nil
         }
     }
