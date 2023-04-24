@@ -14,6 +14,11 @@ public struct JOHN: Codable, Equatable, CustomStringConvertible {
     let pipeline: [Stage]
     let result: Result
     
+    /// About
+    public var name:        String  { about.name }
+    public var version:     Int     { about.version }
+    public var `protocol`:  String  { about.protocol }
+    
     /// Initializers
     init(about: About, parameters: Parameters? = nil, pipeline: [Stage], result: Result) {
         self.about = about
@@ -25,7 +30,7 @@ public struct JOHN: Codable, Equatable, CustomStringConvertible {
         guard let data = string.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(Self.self, from: data)
     }
-    init?(string: String) {
+    public init?(string: String) {
         guard let parsed = Self.parse(string: string) else { return nil }
         self = parsed
     }

@@ -45,8 +45,9 @@ extension SettableValue where Value: SettableWithCollectionOfRawValues {
             self._wrappedValue = Value(indices.compactMap {
                 return slice[$0]?.text
             })
+        } else {
+            self._wrappedValue = Value([])
         }
-        self._wrappedValue = Value([])
     }
 }
 
@@ -57,6 +58,35 @@ extension SettableValue where Value: ExpectedResult {
             self._wrappedValue = Value(from: slice)
         } else {
             self._wrappedValue = .init()
+        }
+    }
+}
+
+// MARK: Assign a collection of custom set of values extracted from AnyResult
+extension SettableValue where Value: Collection, Value: RangeReplaceableCollection, Value.Element: ExpectedResult {
+    func set(from result: AnyResult) {
+        if let slice = result[self._sourcePath], let indices = slice.indices {
+            self._wrappedValue = Value(indices.compactMap {
+                if let child = slice[Subscript.Element(integerLiteral: $0)] {
+                    return Value.Element(from: child)
+                } else { return nil }
+            })
+        } else {
+            self._wrappedValue = Value([])
+        }
+    }
+}
+///
+extension SettableValue where Value: Collection, Value: SetAlgebra, Value.Element: ExpectedResult {
+    func set(from result: AnyResult) {
+        if let slice = result[self._sourcePath], let indices = slice.indices {
+            self._wrappedValue = Value(indices.compactMap {
+                if let child = slice[Subscript.Element(integerLiteral: $0)] {
+                    return Value.Element(from: child)
+                } else { return nil }
+            })
+        } else {
+            self._wrappedValue = Value([])
         }
     }
 }
@@ -86,7 +116,7 @@ extension UInt8: SettableWithRawValue {}
 extension Unicode.Scalar: SettableWithRawValue {}
 
 // MARK: Conforming Optional wrapping LosslessStringConvertible
-extension Optional: SettableWithRawValue where Wrapped: LosslessStringConvertible {
+extension Optional: SettableWithRawValue where Wrapped: SettableWithRawValue {
     public init?(_ value: String) {
         self = Wrapped(value)
     }
