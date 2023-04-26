@@ -47,6 +47,27 @@ struct IOMarkup: IOProtocol {
             return wrappedAttributes[key]
         }
     }
+    /*
+     subscript(key: String) -> (IOProtocol)? {
+         /// Case insensitive attributes and tag names are treated as their uppercased counterpart
+         let key = caseInsensitive ? key.uppercased() : key
+         let attribute = attribute(key)
+         let children = children(key)
+         if attribute == nil && children.isEmpty { return nil }
+         return Self.init(tagName: attribute, wrappedAttributes: IOPayload(array: []), wrappedChildren: IOPayload(array: children))
+     }
+     internal func attribute(_ key: String) -> String? {
+         return wrappedAttributes[key]?.text
+     }
+     internal func children(_ key: String) -> [Self] {
+         return wrappedChildren.indices?.compactMap {
+             if let markup = (wrappedChildren[$0] as? Self),
+                    markup.text == key {
+                 return markup
+             } else { return nil }
+         } ?? []
+     }
+    */
     
     // MARK: Initializers
     internal init(tagName: String? = nil, wrappedAttributes: any IOProtocol, wrappedChildren: any IOProtocol, caseInsensitive: Bool = false) {

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Subscript: Collection, RawRepresentable, Comparable, Equatable, CustomStringConvertible, ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Hashable {
+public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, Equatable, CustomStringConvertible, ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Hashable {
     internal let components: [Subscript.Element]
     
     internal let specificity: Specificity
@@ -56,7 +56,7 @@ public struct Subscript: Collection, RawRepresentable, Comparable, Equatable, Cu
     }
     internal let _sourceStringLiteral: String?
     public var description: String {
-        return _sourceStringLiteral ?? "\(self.components.first?.description ?? "")\(self.components.dropFirst().flatMap { $0.description(withParentheses: true) })"
+        return _sourceStringLiteral ?? "\(self.components.first?.description ?? "")\(self.components.dropFirst().map { $0.description(withParentheses: true) }.joined())"
     }
     internal struct Parser {
         enum State: Equatable {
@@ -190,7 +190,7 @@ public struct Subscript: Collection, RawRepresentable, Comparable, Equatable, Cu
     public func suffix(_ maxLength: Int) -> Self {
         .init(rawValue: Swift.Array(self.components.suffix(maxLength)))
     }
-    // MARK: Collection Protocol
+    // MARK: BidirectionalCollection Protocol
     public typealias Index = RawValue.Index
     public var startIndex: Index {
         self.components.startIndex
@@ -203,6 +203,9 @@ public struct Subscript: Collection, RawRepresentable, Comparable, Equatable, Cu
     }
     public func index(after i: RawValue.Index) -> RawValue.Index {
         self.components.index(after: i)
+    }
+    public func index(before i: RawValue.Index) -> RawValue.Index {
+        self.components.index(before: i)
     }
     public func appending(_ newElement: RawValue.Element) -> Self {
         .init(rawValue: [self.components, [newElement]].flatMap { $0 } )

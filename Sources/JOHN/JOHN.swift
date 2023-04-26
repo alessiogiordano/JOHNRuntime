@@ -85,6 +85,8 @@ public struct JOHN: Codable, Equatable, CustomStringConvertible {
         let result = AnyResult(rootOf: .init(context.outputs, result: self.result))
         // MARK: didEndPlugin Event
         context.delegate?.debug(didEndPlugin: self, result: result)
+        /// Check for task cancellation
+        try Task.checkCancellation()
         return result
     }
     /// ExpectedResult

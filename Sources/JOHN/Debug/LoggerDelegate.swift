@@ -118,7 +118,7 @@ extension LoggerDelegate: DebugDelegate {
         self.print("didStartStage \(stage)")
     }
     public func debug(willDeferStage stage: Int) {
-        self.print("didStartStage \(stage)")
+        self.print("willDeferStage \(stage)")
     }
     public func debug(willExecuteDeferedRequest request: HTTPClientRequest, index: Int) {
         self.print("willExecuteDeferedRequest \(index)\t\(requestString(request))", """

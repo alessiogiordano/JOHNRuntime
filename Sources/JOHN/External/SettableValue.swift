@@ -96,7 +96,11 @@ extension Bool: SettableWithRawValue {}
 extension Character: SettableWithRawValue {}
 extension Double: SettableWithRawValue {}
 extension Float: SettableWithRawValue {}
+#if os(macOS) && arch(x86_64)
+/// From the Swift Forums: [Float16] It's supported on Apple Silicon because we have a stable ABI for Float16 on ARM64. It's supported on Windows and Linux because we don't need binary stability on those platforms. But Intel has to define the calling conventions in the x86_64 ABI document and implement them in LLVM before we can make it available in the SDK for macOS on x86.
+#else
 extension Float16: SettableWithRawValue {}
+#endif
 #if arch(x86_64)
 /// Float80 is available only when running on Intel architectures
 extension Float80: SettableWithRawValue {}

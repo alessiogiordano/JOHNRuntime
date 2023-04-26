@@ -203,6 +203,8 @@ extension Stage {
             context?.delegate?.debug(willStartBufferingBody: Int(response.headers["Content-Length"].first ?? "0") ?? 0)
             var body = ""
             for try await buffer in response.body {
+                /// Check for task cancellation
+                try Task.checkCancellation()
                 body.append(contentsOf: String(buffer: buffer))
             }
             // MARK: didEndBufferingBody Event

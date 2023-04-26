@@ -74,6 +74,9 @@ extension IOMarkup {
         self.init(recursiveConversionOfElement: root, caseInsensitive: true, parsingTextAsJSON: containingJSON) /// Root text nodes are not allowed
     }
     private init?(recursiveConversionOfElement node: XML.Node, caseInsensitive: Bool = false, parsingTextAsJSON: Bool = false) {
+        if Task.isCancelled {
+            return nil
+        }
         if case .element(let tagName, let attributes) = node.value {
             self.text = tagName
             self.caseInsensitive = caseInsensitive
@@ -83,11 +86,13 @@ extension IOMarkup {
                 case .element(_, _):
                     return IOMarkup.init(recursiveConversionOfElement: $0)
                 case .text(let string):
-                    if parsingTextAsJSON {
-                        return IOPayload(json: string) ?? IOPayload(text: string)
-                    } else {
-                        return IOPayload(text: string)
-                    }
+                    if !string.isEmpty {
+                        if parsingTextAsJSON {
+                            return IOPayload(json: string) ?? IOPayload(text: string)
+                        } else {
+                            return IOPayload(text: string)
+                        }
+                    } else { return nil }
                 }
             })
         } else { return nil }
@@ -149,18 +154,27 @@ extension IOMarkup {
         
         // MARK: XMLParserDelegate
         /// Start of element
-        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
+        func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {/// Check for task cancellation
             let element = Node(.element(tagName: elementName, attributes: attributeDict))
             pending?.append(elementNode: element)
             self.pending = element /// Equivalent of setting self.depth += 1 in the Apple demo
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
         /// Contents of element
         func parser(_ parser: XMLParser, foundCharacters string: String) {
             pending?.append(textNode: string)
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
         /// End of element
         func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
             pending = pending?.close() /// Equivalent of setting self.depth -= 1 in the Apple demo
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
         
         // MARK: HTMLParserDelegate
@@ -169,14 +183,23 @@ extension IOMarkup {
             let element = Node(.element(tagName: elementName, attributes: attributeDict))
             pending?.append(elementNode: element)
             self.pending = element /// Equivalent of setting self.depth += 1 in the Apple demo
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
         /// Contents of element
         func parser(_ parser: HTMLParser, foundCharacters string: String) {
             pending?.append(textNode: string)
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
         /// End of element
         func parser(_ parser: HTMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName qName: String?) {
             pending = pending?.close() /// Equivalent of setting self.depth -= 1 in the Apple demo
+            if Task.isCancelled {
+                parser.abortParsing()
+            }
         }
     }
 }

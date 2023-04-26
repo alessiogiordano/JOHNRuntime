@@ -27,28 +27,30 @@ extension Execution {
 
         // this loop is there to follow potential redirects
         while true {
+            /// Check for task cancellation
+            try Task.checkCancellation()
             /// The original code uses the internal types HTTPClientRequest.Prepared() and HTTPClient.executeCancellable
             /// I replace those with the public execute(_ request: timeout:) since the http client is known to not follow redirections
             if remainingRedirects == redirectCount {
                 // MARK: willStartHTTPRequest Event
-                self.delegate?.debug(willStartHTTPRequest: request)
+                self.delegate?.debug(willStartHTTPRequest: currentRequest)
             } else {
                 // MARK: willStartHTTPRedirect Event
-                self.delegate?.debug(willStartHTTPRedirect: request, count: redirectCount - remainingRedirects)
+                self.delegate?.debug(willStartHTTPRedirect: currentRequest, count: redirectCount - remainingRedirects)
             }
             ///
-            let response = try await self.httpClient.execute(request, timeout: timeout)
+            let response = try await self.httpClient.execute(currentRequest, timeout: timeout)
             ///
             if remainingRedirects == redirectCount {
                 // MARK: didEndHTTPRequest Event
-                self.delegate?.debug(didEndHTTPRequest: request, response: response)
+                self.delegate?.debug(didEndHTTPRequest: currentRequest, response: response)
             } else {
                 // MARK: didEndHTTPRedirect Event
-                self.delegate?.debug(didEndHTTPRedirect: request, count: redirectCount - remainingRedirects, response: response)
+                self.delegate?.debug(didEndHTTPRedirect: currentRequest, count: redirectCount - remainingRedirects, response: response)
             }
             
             // MARK: Additional cookie logic
-            if originalRequestOverridesCookieBehaviour == false, let url = URL(string: request.url) {
+            if originalRequestOverridesCookieBehaviour == false, let url = URL(string: currentRequest.url) {
                 self.applyCookieChanges(from: response, of: url)
             }
 
@@ -74,7 +76,7 @@ extension Execution {
             }
             
             /// HTTPClientRequest.Prepared() is not public, so the external string representation of the original request url must be converted to Foundation.URL to generste the redirect url
-            guard let originalURL = URL(string: request.url),
+            guard let originalURL = URL(string: currentRequest.url),
                   let redirectURL = URL(string: location, relativeTo: originalURL) else {
                 /// Returning response instead of nil redirectURL
                 return response

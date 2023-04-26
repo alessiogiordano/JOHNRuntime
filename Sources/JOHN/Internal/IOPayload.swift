@@ -11,13 +11,21 @@ struct IOPayload: IOProtocol {
     let wrappedValue: Any
     
     var text: String? {
-        return wrappedValue as? String
+        return (wrappedValue as? String) ?? (
+            (wrappedValue as? Double) != nil || (wrappedValue as? Bool) != nil
+                ? (wrappedValue as? CustomStringConvertible)?.description
+                : nil
+        )
     }
     var number: Double? {
-        return wrappedValue as? Double
+        return wrappedValue as? Double ?? (
+            (wrappedValue as? String) != nil ? Double(wrappedValue as! String) : nil
+        )
     }
     var boolean: Bool? {
-        return wrappedValue as? Bool
+        return wrappedValue as? Bool ?? (
+            (wrappedValue as? String)?.lowercased() == "true" ? true : (wrappedValue as? String)?.lowercased() == "false" ? false : nil
+        )
     }
     
     var indices: Range<Int>? {
@@ -29,7 +37,8 @@ struct IOPayload: IOProtocol {
     }
     subscript(_ index: Int) -> (any IOProtocol)? {
         if let array = wrappedValue as? [Any] {
-            return IOPayload.init(wrappedValue: array[index])
+            /// Prevent double-wrapping of IOProtocol types
+            return (array[index] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: array[index])
         } else { return nil }
     }
     
@@ -42,7 +51,8 @@ struct IOPayload: IOProtocol {
     }
     subscript(_ key: String) -> (any IOProtocol)? {
         if let dictionary = wrappedValue as? [String: Any] {
-            return IOPayload.init(wrappedValue: dictionary[key] as Any)
+            /// Prevent double-wrapping of IOProtocol types
+            return (dictionary[key] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: dictionary[key] as Any)
         } else { return nil }
     }
     

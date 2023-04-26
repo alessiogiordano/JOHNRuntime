@@ -21,10 +21,10 @@ extension AnyResult {
         // MARK: Accessing mapped result
         internal subscript(externalSubscript: Subscript) -> (any IOProtocol)? {
             guard let match = internalSubscript(from: externalSubscript) else { return nil }
-            if let textValue = try? Variable.substitute(outputs: outputs, in: match) {
-                return IOPayload(text: textValue)
-            } else if let resolvedValue = try? Variable(string: match).resolve(with: outputs) {
+            if let resolvedValue = try? Variable(string: match).resolve(with: outputs) {
                 return resolvedValue
+            } else if let textValue = try? Variable.substitute(outputs: outputs, in: match) {
+                return IOPayload(text: textValue)
             } else {
                 return nil
             }
