@@ -27,31 +27,11 @@ public extension SettableWithCollectionOfRawValues {
         }
     }
 }
-public extension Collection where Self: RangeReplaceableCollection, Element: ExpectedResult  {
+public extension SettableWithCollectionOfExpectedResults  {
     init(executing plugin: JOHN, on group: JOHN.Group? = nil, with options: JOHN.Options = .none, at subscript: Subscript = .init()) async {
         if let result = try? await plugin.execute(on: group, with: options),
-           let slice = result[`subscript`],
-           let indices = slice.indices {
-            self.init(indices.compactMap {
-                if let child = slice[Subscript.Element(integerLiteral: $0)] {
-                    return Element(from: child)
-                } else { return nil }
-            })
-        } else {
-            self.init([])
-        }
-    }
-}
-public extension Collection where Self: SetAlgebra, Element: ExpectedResult  {
-    init(executing plugin: JOHN, on group: JOHN.Group? = nil, with options: JOHN.Options = .none, at subscript: Subscript = .init()) async {
-        if let result = try? await plugin.execute(on: group, with: options),
-           let slice = result[`subscript`],
-           let indices = slice.indices {
-            self.init(indices.compactMap {
-                if let child = slice[Subscript.Element(integerLiteral: $0)] {
-                    return Element(from: child)
-                } else { return nil }
-            })
+           let slice = result[`subscript`] {
+            self.init(Self.children(of: slice))
         } else {
             self.init([])
         }

@@ -63,19 +63,11 @@ public extension ExpectedValue where Value: ExpectedResult {
 
 // MARK: @ExpectedValue("key") var value: [CustomType] where CustomType: ExpectedResult
 // MARK: @ExpectedValue("key") var value: Set<CustomType>
-public extension ExpectedValue where Value: Collection, Value: RangeReplaceableCollection, Value.Element: ExpectedResult {
-    convenience init(wrappedValue: Value = .init(), _ path: String) {
+public extension ExpectedValue where Value: SettableWithCollectionOfExpectedResults {
+    convenience init(wrappedValue: Value = .init([]), _ path: String) {
         self.init(wrappedValue: wrappedValue, Subscript(stringLiteral: path))
     }
-    convenience init(wrappedValue: Value = .init(), _ path: Subscript) {
-        self.init(_wrappedValue: wrappedValue, _sourcePath: path)
-    }
-}
-public extension ExpectedValue where Value: Collection, Value: SetAlgebra, Value.Element: ExpectedResult {
-    convenience init(wrappedValue: Value = .init(), _ path: String) {
-        self.init(wrappedValue: wrappedValue, Subscript(stringLiteral: path))
-    }
-    convenience init(wrappedValue: Value = .init(), _ path: Subscript) {
+    convenience init(wrappedValue: Value = .init([]), _ path: Subscript) {
         self.init(_wrappedValue: wrappedValue, _sourcePath: path)
     }
 }

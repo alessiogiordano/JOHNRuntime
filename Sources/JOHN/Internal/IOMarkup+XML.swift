@@ -37,10 +37,10 @@ extension IOMarkup {
     init?(soap: Data?, containingJSON: Bool = false) async {
         guard let root = await Self.init(xml: soap, containingJSON: containingJSON) else { return nil }
         /// Looking for Envelope
-        guard let envelopeIndex = root.indices?.first(where: {
-            let tagName = root[$0]?.text?.uppercased()
-            return tagName?.hasSuffix(":ENVELOPE") ?? false || tagName == "ENVELOPE"
-        }), let envelope = root[envelopeIndex] else { return nil }
+        guard let envelopeTagName = root.text?.uppercased(),
+              let envelope = (envelopeTagName.hasSuffix(":ENVELOPE") || envelopeTagName == "ENVELOPE")
+                                ? root : nil
+            else { return nil }
         /// Looking for Body
         guard let bodyIndex = envelope.indices?.first(where: {
             let tagName = envelope[$0]?.text?.uppercased()
@@ -84,7 +84,7 @@ extension IOMarkup {
             self.wrappedChildren = IOPayload(array: node.children.compactMap {
                 switch $0.value {
                 case .element(_, _):
-                    return IOMarkup.init(recursiveConversionOfElement: $0)
+                    return IOMarkup.init(recursiveConversionOfElement: $0, parsingTextAsJSON: parsingTextAsJSON)
                 case .text(let string):
                     if !string.isEmpty {
                         if parsingTextAsJSON {
