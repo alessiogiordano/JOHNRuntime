@@ -255,7 +255,7 @@ extension LoggerDelegate: DebugDelegate {
     public func debug(didEndPlugin plugin: JOHN, result: AnyResult) {
         self.print("didEndPlugin \"\(plugin.about.name)\"", """
         didEndPlugin \(plugin.about.name)
-        RESULT: \(result.resultMap.subscripts.debugDescription)
+        RESULT: \(result.path.map.debugDescription)
         """)
     }
 }

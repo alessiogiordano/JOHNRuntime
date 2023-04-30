@@ -87,14 +87,27 @@ struct IOPagination: IOProtocol {
     
     // MARK: Array subscript
     var indices: Range<Int>? {
-        var count = 0
-        for page in wrappedPages {
-            count += page.indices?.count ?? 1
-        }
-        if count > 0 {
-            return 0..<count
-        } else {
-            return nil
+        /// Check out the integer subscript for details on how the defaultAccessPolicy works
+        switch defaultAccessPolicy {
+            case .first:    return wrappedPages.first?.indices
+            case .keep:     return wrappedPages.first {
+                                $0.indices != nil
+                            }?.indices
+            case .replace:  return wrappedPages.reversed().first {
+                                $0.indices != nil
+                            }?.indices
+            case .last:     return wrappedPages.last?.indices
+            case .none:     return wrappedPages.indices
+            case .append:
+                var count = 0
+                for page in wrappedPages {
+                    count += page.indices?.count ?? 1
+                }
+                if count > 0 {
+                    return 0..<count
+                } else {
+                    return nil
+                }
         }
     }
     subscript(_ index: Int) -> (any IOProtocol)? {
@@ -176,9 +189,10 @@ struct IOPagination: IOProtocol {
         switch accessPolicy[key] ?? defaultAccessPolicy {
             case .first:    return wrappedPages.first?[key]
             case .keep:     return firstInstanceOfDictionaryNode(wrappedPages)?[key]
-            case .append:   return IOPayload(array: wrappedPages.compactMap {
-                                return $0[key]
-                            })
+            case .append:   return IOPagination(wrappedPages:
+                                wrappedPages.compactMap {
+                                    return $0[key]
+                            }, defaultAccessPolicy: .append)
             case .replace:  return firstInstanceOfDictionaryNode(wrappedPages.reversed())?[key]
             case .last:     return wrappedPages.last?[key]
             case .none:     return nil
@@ -190,5 +204,10 @@ struct IOPagination: IOProtocol {
         self.wrappedPages = wrappedPages
         self.defaultAccessPolicy = mergingPolicy?.default ?? .none
         self.accessPolicy = mergingPolicy?.override ?? [:]
+    }
+    private init(wrappedPages: [any IOProtocol], defaultAccessPolicy: Merger.Policy?) {
+        self.wrappedPages = wrappedPages
+        self.defaultAccessPolicy = defaultAccessPolicy ?? .none
+        self.accessPolicy = [:]
     }
 }

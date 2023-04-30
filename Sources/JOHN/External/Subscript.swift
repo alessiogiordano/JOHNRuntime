@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, Equatable, CustomStringConvertible, ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Hashable {
+public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, Equatable, CustomStringConvertible, ExpressibleByStringLiteral, ExpressibleByStringInterpolation, Hashable, Codable {
     internal let components: [Subscript.Element]
     
     internal let specificity: Specificity
@@ -34,6 +34,9 @@ public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, 
             default:                return $0
             }
         }
+    }
+    internal func resolvingBounds(with outputs: [(any IOProtocol)?]) -> Self {
+        .init(rawValue: Self.resolveBoundsIfNecessary(components: self.components, with: outputs))
     }
     
     // MARK: Expressible as String
@@ -75,7 +78,13 @@ public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, 
                     buffer = ""
                 }
             }
-            for character in stringLiteral {
+            let variableRanges = Variable.findVariableRanges(stringLiteral)
+            for index in stringLiteral.indices {
+                let character = stringLiteral[index]
+                if variableRanges.contains(where: { range in range.contains(index) }) {
+                    buffer.append(character)
+                    continue
+                }
                 switch state {
                 case .lookingForOpen:
                     if character == "[" {
@@ -106,6 +115,13 @@ public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, 
             guard state == .lookingForOpen else { throw ParsingError.unpairedParentheses }
             return components
         }
+    }
+    // MARK: Codable as String
+    public func encode(to encoder: Encoder) throws {
+        try self.description.encode(to: encoder)
+    }
+    public init(from decoder: Decoder) throws {
+        self.init(stringLiteral: try .init(from: decoder))
     }
     
     // MARK: RawRepresentable as [Subscript.Element]
@@ -146,12 +162,16 @@ public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, 
     // MARK: Matching
     /// Simple equivalence check requires that only non jolly subscripts match
     public static func ~= (lhs: Subscript, rhs: Subscript) -> Bool {
-        guard lhs.components.count == rhs.components.count else { return false }
+        guard lhs.components.count <= rhs.components.count else { return false }
         for index in lhs.components.indices {
             guard lhs.components[index] ~= rhs.components[index]
             else { return false }
         }
         return true
+    }
+    /// Convenience method for checking if a subscript contains the left-hand side element as its prefix
+    public static func ~= (lhs: Subscript.Element, rhs: Subscript) -> Bool {
+        return Subscript(rawValue: [lhs]) ~= rhs
     }
     // MARK: Equivalence
     /// Strict equivalence requires exact equivalence of each component of the array
@@ -242,30 +262,10 @@ public struct Subscript: BidirectionalCollection, RawRepresentable, Comparable, 
     internal func resolvePlaceholders(with source: Self, into destination: String) throws -> String {
         var variables: [String] = try self.listResolvedPlaceholders(with: source).reversed()
         let destination = destination.split(separator: "[*]")
-        return try destination.dropFirst().map {
+        return (destination.first ?? "").appending( try destination.dropFirst().map {
             guard variables.count > 0 else { throw ResolutionError.overflow }
             let value = variables.remove(at: 0)
-            return "\($0)[\(value)]"
-        }.joined().appending(destination.first ?? "")
+            return "[\(value)]\($0)"
+        }.joined())
     }
 }
-
-/*
-extension Optional where Wrapped == Subscript {
-    public static func == (lhs: Subscript?, rhs: Subscript?) -> Bool {
-        if let lhs {
-            if let rhs {
-                return lhs == rhs
-            } else  {
-                return lhs.isEmpty
-            }
-        } else {
-            if let rhs {
-                return rhs.isEmpty
-            } else {
-                return true
-            }
-        }
-    }
-}
-*/

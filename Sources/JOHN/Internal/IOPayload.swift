@@ -38,7 +38,7 @@ struct IOPayload: IOProtocol {
     subscript(_ index: Int) -> (any IOProtocol)? {
         if let array = wrappedValue as? [Any] {
             /// Prevent double-wrapping of IOProtocol types
-            return (array[index] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: array[index])
+            return (array[index] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: array[index] as Any?)
         } else { return nil }
     }
     
@@ -52,11 +52,16 @@ struct IOPayload: IOProtocol {
     subscript(_ key: String) -> (any IOProtocol)? {
         if let dictionary = wrappedValue as? [String: Any] {
             /// Prevent double-wrapping of IOProtocol types
-            return (dictionary[key] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: dictionary[key] as Any)
+            return (dictionary[key] as? (any IOProtocol)) ?? IOPayload.init(wrappedValue: dictionary[key] as Any?)
         } else { return nil }
     }
     
     // MARK: Initializers
+    internal init?(wrappedValue: Any?) {
+        if let wrappedValue {
+            self.init(wrappedValue: wrappedValue)
+        } else { return nil }
+    }
     internal init(wrappedValue: Any) {
         self.wrappedValue = wrappedValue
     }

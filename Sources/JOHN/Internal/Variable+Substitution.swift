@@ -15,6 +15,7 @@ extension Variable {
         var temp = ""
         var parsingVariableName = false
         var parsingVariableChild = false
+        var parsingVariableNestedChild = false
         for character in string {
             if parsingVariableName {
                 if character.isNumber {
@@ -31,31 +32,58 @@ extension Variable {
             } else if parsingVariableChild {
                 temp.append(String(character))
                 if character == "]" {
-                    result.append((true, temp))
                     parsingVariableChild = false
-                    temp = ""
+                    parsingVariableNestedChild = true
                 }
             } else {
-                if character != "$" {
+                if parsingVariableNestedChild && character == "[" {
+                    parsingVariableChild = true
+                    parsingVariableNestedChild = false
                     temp.append(String(character))
                 } else {
-                    if temp.last == "\\" {
-                        temp = String(temp.dropLast())
-                        temp.append(character)
+                    if parsingVariableNestedChild {
+                        result.append((true, temp))
+                        temp = ""
+                        parsingVariableNestedChild = false
+                    }
+                    if character != "$" {
+                        temp.append(String(character))
                     } else {
-                        parsingVariableName = true
-                        result.append((false, temp))
-                        temp = String(character)
+                        if temp.last == "\\" {
+                            temp = String(temp.dropLast())
+                            temp.append(character)
+                        } else {
+                            parsingVariableName = true
+                            if !temp.isEmpty {
+                                result.append((false, temp))
+                            }
+                            temp = String(character)
+                        }
                     }
                 }
             }
         }
         if temp.count > 0 {
             if (parsingVariableChild) { throw SplittingError.unterminatedSubscript }
-            result.append((parsingVariableName, temp))
+            result.append((parsingVariableName || parsingVariableNestedChild, temp))
             temp = ""
         }
         return result
+    }
+    public static func findVariableRanges(_ string: String) -> [Range<String.Index>] {
+        let components = (try? splitString(string)) ?? []
+        var cursor = 0
+        return components.compactMap { component in
+            if component.isVariable {
+                let start = string.index(string.startIndex, offsetBy: cursor)
+                cursor += component.value.count
+                let end = string.index(string.startIndex, offsetBy: cursor)
+                return .init(uncheckedBounds: (lower: start, upper: end))
+            } else {
+                cursor += component.value.count
+                return nil
+            }
+        }
     }
     
     enum SubstitutionError: Error {
@@ -89,6 +117,9 @@ extension Variable {
             throw SubstitutionError.notFound
         }
         return try self.traversePath(path, of: rootOutput)
+    }
+    public func canBeResolved(with outputs: [(any IOProtocol)?]) -> Bool {
+        return (try? self.resolve(with: outputs)) != nil
     }
     
     private static func substitute(outputs: [(any IOProtocol)?], in components: [StringComponent], urlEncoded: Bool) throws -> String {

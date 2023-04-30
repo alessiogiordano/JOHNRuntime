@@ -18,10 +18,13 @@ extension Stage {
     func verifyAssertion(in context: Execution) throws {
         guard let assertions = assert else { return }
         for (variable, assertion) in assertions {
-            let resolvedValue = try? Variable.substitute(outputs: context.outputs, in: variable)
+            let substitutedValue = try? Variable.substitute(outputs: context.variables, in: variable)
+            let valueExists = substitutedValue == nil
+                                ? (try? Variable(string: variable))?.canBeResolved(with: context.variables) ?? false
+                                : true
             /// "Exists" Assertion
             if let exists = assertion.exists {
-                if resolvedValue == nil && exists == true || resolvedValue != nil && exists == false {
+                if !valueExists && (exists == true) || valueExists && (exists == false) {
                     // MARK: didFailExistsAssertion Event
                     context.delegate?.debug(didFailExistsAssertion: variable, assertion: exists)
                     throw Assertion.Error.assertionFailed
@@ -31,11 +34,11 @@ extension Stage {
             }
             /// "Contained" Assertion
             if let matches = assertion.contained {
-                guard let resolvedValue else {
+                guard let substitutedValue else {
                     // MARK: didFailContainedAssertion Event
                     context.delegate?.debug(didFailContainedAssertion: variable, assertion: matches)
                     throw Assertion.Error.assertionFailed }
-                if matches.first(where: { $0 == resolvedValue }) == nil {
+                if matches.first(where: { $0 == substitutedValue }) == nil {
                     // MARK: didFailContainedAssertion Event
                     context.delegate?.debug(didFailContainedAssertion: variable, assertion: matches)
                     throw Assertion.Error.assertionFailed
@@ -48,21 +51,25 @@ extension Stage {
 }
 
 extension Result {
-    func verifyAssertion(with variables: [(any IOProtocol)?]) throws {
+    func verifyAssertion(with variables: [(any IOProtocol)?], mappingPlaceholdersFrom internal: Subscript, toValuesOf external: Subscript) throws {
         guard case .conditional(let result) = self else { return }
         guard let assertions = result.assert else { return }
         for (variable, assertion) in assertions {
-            let resolvedValue = try? Variable.substitute(outputs: variables, in: variable)
+            let variable = try `internal`.resolvePlaceholders(with: external, into: variable)
+            let substitutedValue = try? Variable.substitute(outputs: variables, in: variable)
+            let valueExists = substitutedValue == nil
+                                ? (try? Variable(string: variable))?.canBeResolved(with: variables) ?? false
+                                : true
             /// "Exists" Assertion
             if let exists = assertion.exists {
-                if resolvedValue == nil && exists == true || resolvedValue != nil && exists == false {
+                if !valueExists && (exists == true) || valueExists && (exists == false) {
                     throw Assertion.Error.assertionFailed
                 }
             }
             /// "Contained" Assertion
             if let matches = assertion.contained {
-                guard let resolvedValue else { throw Assertion.Error.assertionFailed }
-                if matches.first(where: { $0 == resolvedValue }) == nil {
+                guard let substitutedValue else { throw Assertion.Error.assertionFailed }
+                if matches.first(where: { $0 == substitutedValue }) == nil {
                     throw Assertion.Error.assertionFailed
                 }
             }

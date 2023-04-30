@@ -82,7 +82,7 @@ public struct JOHN: Codable, Equatable, CustomStringConvertible {
         if group == nil {
             try await context.executeDeferedRequests()
         }
-        let result = AnyResult(rootOf: .init(context.outputs, result: self.result))
+        let result = AnyResult(rootOf: context.outputs, via: self.result)
         // MARK: didEndPlugin Event
         context.delegate?.debug(didEndPlugin: self, result: result)
         /// Check for task cancellation

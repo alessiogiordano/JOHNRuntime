@@ -47,22 +47,22 @@ extension Subscript.Element.Index: RawRepresentable, ExpressibleByIntegerLiteral
             self = .constant(integerValue)
         } else {
             let range = value.split(separator: "*")
-            guard range.count < 2 else { self = .none; return }
+            guard range.count < 3 else { self = .none; return }
             if let first = range.first {
-                if let last = range.last {
+                if range.count > 1, let last = range.last {
                     if first.last == "<" && last.first == "<" {
                         /// Both the lower and the upper bounds are explicitly defined
-                        self = .range(lhs: .init(stringLiteral: String(first)), rhs: .init(stringLiteral: String(last)))
+                        self = .range(lhs: .init(stringLiteral: String(first.dropLast())), rhs: .init(stringLiteral: String(last.dropFirst())))
                     } else {
                         self = .none
                     }
                 } else {
                     if first.last == "<" {
                         /// There is not enough information to infer a range, but defining a lower threshold is still possible
-                        self = .floor(.init(stringLiteral: String(first)))
+                        self = .floor(.init(stringLiteral: String(first.dropLast())))
                     } else if first.first == "<" {
                         /// Range with 0 as the lower bound
-                        self = .range(lhs: .literal(0), rhs: .init(stringLiteral: String(first)))
+                        self = .range(lhs: .literal(0), rhs: .init(stringLiteral: String(first.dropFirst())))
                     } else {
                         self = .none
                     }
