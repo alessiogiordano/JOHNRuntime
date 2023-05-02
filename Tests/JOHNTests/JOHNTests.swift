@@ -19,11 +19,11 @@ final class JOHNTests: XCTestCase {
             },
             {
                 "url": "http://127.0.0.1:8080/john/text",
-                "yield": "header"
+                "yield": "headers"
             },
             {
                 "url": "http://127.0.0.1:8080/john/combo/$2[content-length]",
-                "header": {
+                "headers": {
                     "john": "$2[content-length]"
                 },
                 "query": {
@@ -42,8 +42,8 @@ final class JOHNTests: XCTestCase {
         
         let desiredOutput = JOHN(about: .init(name: "Sample Plugin", version: 1, protocol: "Sample Protocol"), pipeline: [
             .init(url: "http://127.0.0.1:8080/john/json", method: "GET"),
-            .init(url: "http://127.0.0.1:8080/john/text", yield: .header),
-            .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", header: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"])
+            .init(url: "http://127.0.0.1:8080/john/text", yield: .headers),
+            .init(url: "http://127.0.0.1:8080/john/combo/$2[content-length]", headers: ["john": "$2[content-length]"], query: ["john": "$2[content-length]"])
         ], result: ["json": "$1[text]", "text": "$2[content-length]", "combo": "$3"])
         let actualOutput = try! JSONDecoder().decode(JOHN.self, from: Self.examplePlugin.data(using: .utf8)!)
         

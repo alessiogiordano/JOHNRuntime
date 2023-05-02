@@ -20,25 +20,25 @@ struct Stage: Codable, Equatable {
     /// Authorization.swift
     let authorization: Authorization?
     /// Execution+Redirection.swift
-    let redirect: Int?
+    let redirects: Int?
     /// Fields
     let url: String
     let method: String?
     let status: [Int]?
-    let header: [String: String]?
+    let headers: [String: String]?
     let query: [String: String]?
     let cookies: Cookies?
     let body: Body?
     /// Result value
     let yield: Yield?
-    enum Yield: String, Codable, Equatable { case header, body, cookies }
+    enum Yield: String, Codable, Equatable { case headers, body, cookies }
     /// Encoding and decoding
     let encode: Encode?
     enum Encode: Codable { case json, form }
     let decode: Decode?
-    enum Decode: String, Codable { case auto, raw, json, form, xml, xmlJson = "xml-json", soap, soapJson = "soap-json", html }
+    enum Decode: String, Codable { case auto, raw, json, form, xml, xmlJson = "xml-json", soap, soapJson = "soap-json", html, base64 }
     
-    init(url: String, id: String? = nil, defer: Bool? = nil, assert: [String: Assertion]? = nil, `repeat`: Repetition? = nil, merge: Merger? = nil, authorization: Authorization? = nil, redirect: Int? = nil, method: String? = nil, status: [Int]? = nil, header: [String: String]? = nil, query: [String: String]? = nil, cookies: Cookies? = nil, body: Body? = nil, yield: Yield? = nil, encode: Encode? = nil, decode: Decode? = nil) {
+    init(url: String, id: String? = nil, defer: Bool? = nil, assert: [String: Assertion]? = nil, `repeat`: Repetition? = nil, merge: Merger? = nil, authorization: Authorization? = nil, redirects: Int? = nil, method: String? = nil, status: [Int]? = nil, headers: [String: String]? = nil, query: [String: String]? = nil, cookies: Cookies? = nil, body: Body? = nil, yield: Yield? = nil, encode: Encode? = nil, decode: Decode? = nil) {
         /// Execution.swift
         self.id = id
         self.defer = `defer`
@@ -51,12 +51,12 @@ struct Stage: Codable, Equatable {
         /// Authorization.swift
         self.authorization = authorization
         /// Redirection.swift
-        self.redirect = redirect
+        self.redirects = redirects
         /// Fields
         self.url = url
         self.method = method
         self.status = status
-        self.header = header
+        self.headers = headers
         self.query = query
         self.cookies = cookies
         self.body = body

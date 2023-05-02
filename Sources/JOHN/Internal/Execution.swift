@@ -9,7 +9,7 @@ import Foundation
 import AsyncHTTPClient
 
 class Execution {
-    enum Error: Swift.Error { case statusNotValid }
+    enum Error: Swift.Error { case statusNotValid, unableToEncodeObjectAsForm }
     ///
     let httpClient: HTTPClient
     ///
@@ -115,9 +115,9 @@ extension Stage {
                     .absoluteString
             }
             /// Method
-            if let method { request.method = .init(rawValue: try Variable.substitute(outputs: context.variables, in: method)) }
+            if let method { request.method = .init(rawValue: (try Variable.substitute(outputs: context.variables, in: method)).uppercased()) }
             /// Headers
-            if let header { request.headers = .init(try header.map { ($0.key, try Variable.substitute(outputs: context.variables, in: $0.value)) }) }
+            if let headers { request.headers = .init(try headers.map { ($0.key, try Variable.substitute(outputs: context.variables, in: $0.value)) }) }
             /// Authorization Header
             try setAuthorizationHeader(from: context, on: &request)
             /// Request body
@@ -150,18 +150,34 @@ extension Stage {
                         request.headers.add(name: "Content-Type", value: "application/json")
                     }
                 }
+            case .object(let body):
+                if case .form = self.encode {
+                    throw Execution.Error.unableToEncodeObjectAsForm
+                }
+                request.body = .bytes(try JSONEncoder().encode(try body.mapValues { value in
+                    if case .string(let value) = value {
+                        return .string(try Variable.substitute(outputs: context.variables, in: value))
+                    } else {
+                        return value
+                    }
+                } mapKeys: { key in
+                    try Variable.substitute(outputs: context.variables, in: key)
+                }))
+                if !request.headers.contains(name: "Content-Type") {
+                    request.headers.add(name: "Content-Type", value: "application/json")
+                }
             case .none: break
             }
             if self.defer == true {
                 /// Defered requests happen after all the others, therefore cannot block subsequent requests in the pipeline by ever returning any value
-                context.deferedRequests.append((request, self.redirect, self.status))
+                context.deferedRequests.append((request, self.redirects, self.status))
                 if let id {
                     context.uniqueDeferedIdentifiers.insert(id)
                 }
                 return nil
             } else {
                 /// Send request
-                let response = try await context.sendRequest(request, following: self.redirect)
+                let response = try await context.sendRequest(request, following: self.redirects)
                 if let status, status.contains(Int(response.status.code)) == false {
                     throw Execution.Error.statusNotValid
                 }
@@ -180,7 +196,7 @@ extension Stage {
         }
     }
     func processResponse(_ response: HTTPClientResponse, with context: Execution? = nil) async throws -> (any IOProtocol)? {
-        if self.yield == .header {
+        if self.yield == .headers {
             var headers: [String: String] = [:]
             /// Reversed so that the first instance of a header replaces all the other ones
             response.headers.reversed().forEach { header in
@@ -198,17 +214,6 @@ extension Stage {
             }
             return IOPayload(dictionary: cookies)
         } else {
-            
-            // MARK: willStartBufferingBody Event
-            context?.delegate?.debug(willStartBufferingBody: Int(response.headers["Content-Length"].first ?? "0") ?? 0)
-            var body = ""
-            for try await buffer in response.body {
-                /// Check for task cancellation
-                try Task.checkCancellation()
-                body.append(contentsOf: String(buffer: buffer))
-            }
-            // MARK: didEndBufferingBody Event
-            context?.delegate?.debug(didEndBufferingBody: body.count, value: body)
             var decodingStrategy: Decode = self.decode ?? .auto
             if decodingStrategy == .auto {
                 if let contentType = response.headers.first(name: "Content-Type") {
@@ -222,6 +227,10 @@ extension Stage {
                         decodingStrategy = .soap
                     } else if contentType.contains("text/xml") || contentType.contains("application/xml") || contentType.hasSuffix("+xml") {
                         decodingStrategy = .xml
+                    } else if contentType.contains("application/octet-stream") || contentType.hasPrefix("audio/") || contentType.hasPrefix("image/") || contentType.hasPrefix("video/") || contentType.hasPrefix("font/") || contentType.contains("application/pdf") || contentType.contains("application/zip") || contentType.contains("application/x-7z-compressed") || contentType.contains("application/vnd.rar") || contentType.contains("application/msword") || contentType.contains("application/vnd.openxmlformats-officedocument.wordprocessingml.document") || contentType.contains("application/vnd.ms-powerpoint") || contentType.contains("application/vnd.openxmlformats-officedocument.presentationml.presentation") || contentType.contains("application/vnd.ms-excel") || contentType.contains("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+                        /// Popular binary MIME types as listed by the Mozilla Developer Network
+                        /// https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+                        decodingStrategy = .base64
                     } else {
                         decodingStrategy = .raw
                     }
@@ -229,6 +238,26 @@ extension Stage {
                     decodingStrategy = .raw
                 }
             }
+            
+            // MARK: willStartBufferingBody Event
+            context?.delegate?.debug(willStartBufferingBody: Int(response.headers["Content-Length"].first ?? "0") ?? 0)
+            var body = ""
+            var data: Data = .init()
+            for try await buffer in response.body {
+                /// Check for task cancellation
+                try Task.checkCancellation()
+                if decodingStrategy == .base64 {
+                    data.append(.init(buffer: buffer))
+                } else {
+                    body.append(contentsOf: String(buffer: buffer))
+                }
+            }
+            if decodingStrategy == .base64 {
+                body = data.base64EncodedString()
+            }
+            // MARK: didEndBufferingBody Event
+            context?.delegate?.debug(didEndBufferingBody: body.count, value: body)
+            
             // MARK: willProcessBodyAs Event
             context?.delegate?.debug(willProcessBodyAs: decodingStrategy.rawValue)
             switch decodingStrategy {
