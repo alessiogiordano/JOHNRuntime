@@ -11,7 +11,10 @@ struct IOPayload: IOProtocol {
     let wrappedValue: Any
     
     var text: String? {
-        return (wrappedValue as? String) ?? (
+        /// The JSON parser stores boolean as Core Foundation types that date back to the Objective-C eraù
+        /// Booleans are treated as numbers to be casted, and __NSCFBoolean is just NSNumber
+        return (wrappedValue as? String) ??
+        ("\(type(of: wrappedValue))" == "__NSCFBoolean" && (wrappedValue as? Bool) != nil ? ((wrappedValue as? Bool) == true ? "true" : "false") : nil) ?? (
             (wrappedValue as? Double) != nil || (wrappedValue as? Bool) != nil
                 ? (wrappedValue as? CustomStringConvertible)?.description
                 : nil
