@@ -79,7 +79,7 @@ enum Cookies: Codable, Equatable, ExpressibleByBooleanLiteral, ExpressibleByDict
 extension URL {
     /// RFC 6265    5.2.3.  The Domain Attribute
     var rfc6265CompliantDomain: String? {
-        guard let domain = self.host()?.lowercased() else { return nil }
+        guard let domain = self.host?.lowercased() else { return nil }
         /// Empty domains are explicitly required to be skipped
         guard !domain.isEmpty else { return nil }
         /// Leading dots are required to be dropped
@@ -88,11 +88,11 @@ extension URL {
     }
     /// RFC 6265    5.2.4.  The Path Attribute
     var rfc6265CompliantPath: String {
-        self.path().first != "/" ? "/" + self.path().lowercased() : self.path().lowercased()
+        self.path.first != "/" ? "/" + self.path.lowercased() : self.path.lowercased()
     }
     /// RFC 6265    5.1.4.  Paths and Path-Match
     var rfc6265DefaultCookiePath: String {
-        let parentPath = self.path().lowercased()
+        let parentPath = self.path.lowercased()
                                     .split(separator: "/", omittingEmptySubsequences: false)
                                     .dropLast()
                                     .joined(separator: "/")

@@ -17,11 +17,11 @@ extension IOMarkup {
         let delegate = XML()
         do {
             /// Apple's XMLParser predates Swift Concurrency, so it is necessary to wrap it
-            _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
+            _ = try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Void, Error>) -> Void in
                 do {
                     let parser = XMLParser(data: xml)
                     parser.delegate = delegate
-                    parser.parse()
+                    _ = parser.parse()
                     if let error = parser.parserError {
                         throw error
                     }
@@ -56,7 +56,7 @@ extension IOMarkup {
         let delegate = XML()
         do {
             /// Since HTMLParser is a drop-in replacement for XMLParser, it predates Swift Concurrency and it is necessary to wrap it
-            _ = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) -> Void in
+            _ = try await withUnsafeThrowingContinuation { (continuation: UnsafeContinuation<Void, Error>) -> Void in
                 do {
                     let parser = HTMLParser(data: html)
                     parser.delegate = delegate

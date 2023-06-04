@@ -247,7 +247,7 @@ extension Stage {
                 /// Check for task cancellation
                 try Task.checkCancellation()
                 if decodingStrategy == .base64 {
-                    data.append(.init(buffer: buffer))
+                    data.append(contentsOf: .init(buffer: buffer))
                 } else {
                     body.append(contentsOf: String(buffer: buffer))
                 }
