@@ -147,8 +147,10 @@ extension Stage {
     /// A stage can only affect the cookies that according to the standard set out in RFC 6265 should be sent in its request, by deleting all of them or only those that match the provided name.
     /// Cookies can also be sent by providing key-value pairs.
     func applyCookieChanges(on context: Execution) {
-        /// First we gather the values for applying or
-        guard let url = URL(string: self.url),
+        /// The url encoding is necessary to safely interpolate the url into an existing url, but if the variable contains a full url, it will lead to non-encodable parts being mistakenly encoded
+        guard let url_string = try? Variable.substitute(outputs: context.variables, in: self.url, urlEncoded: self.url.first != "$"),
+              /// First we gather the values for applying or
+              let url = URL(string: url_string),
               let domain = url.rfc6265CompliantDomain else { return }
         let path = url.rfc6265CompliantPath
         let defaultPath = url.rfc6265DefaultCookiePath
@@ -162,15 +164,17 @@ extension Stage {
             /// Store cookie values in the execution context
             values.forEach {
                 if case .set(let value) = $0.value {
-                    /// Create the cookie
-                    let cookie = HTTPClient.Cookie(
-                        name: $0.key,
-                        value: value,
-                        path: defaultPath,
-                        domain: domain
-                    )
-                    /// Store the cookie
-                    context.storeCookie(cookie, domain: domain, path: path)
+                    if let value = try? Variable.substitute(outputs: context.variables, in: value) {
+                        /// Create the cookie
+                        let cookie = HTTPClient.Cookie(
+                            name: $0.key,
+                            value: value,
+                            path: defaultPath,
+                            domain: domain
+                        )
+                        /// Store the cookie
+                        context.storeCookie(cookie, domain: domain, path: path)
+                    }
                 }
             }
             /// Delete cookies that have been marked for deletion, set the others on the request
