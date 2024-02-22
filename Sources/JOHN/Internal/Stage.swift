@@ -34,7 +34,7 @@ struct Stage: Codable, Equatable {
     enum Yield: String, Codable, Equatable { case headers, body, cookies }
     /// Encoding and decoding
     let encode: Encode?
-    enum Encode: Codable { case json, form }
+    enum Encode: String, Codable { case json, form }
     let decode: Decode?
     enum Decode: String, Codable { case auto, raw, json, form, xml, xmlJson = "xml-json", soap, soapJson = "soap-json", html, base64 }
     
